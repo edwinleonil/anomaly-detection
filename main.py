@@ -148,3 +148,7 @@ print(
     f'Anomaly detected: {is_anomalous}, Reconstruction error: {reconstruction_error}')
 plot_anomalies(original_image, reconstructed_image,
                threshold=0.01, error=reconstruction_error)
+
+# Save the model
+torch.save(autoencoder.state_dict(), "autoencoder.pth")
+```
