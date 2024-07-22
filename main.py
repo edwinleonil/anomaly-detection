@@ -76,9 +76,11 @@ class Autoencoder(nn.Module):
 # Define the Training Function
 
 
-def train_autoencoder(autoencoder, train_loader, num_epochs=10):
+def train_autoencoder(autoencoder, train_loader, num_epochs=100):
     criterion = nn.MSELoss()
     optimizer = optim.Adam(autoencoder.parameters(), lr=0.001)
+    best_loss = float('inf')
+    epochs_no_improve = 0
     for epoch in range(num_epochs):
         for data in train_loader:
             img = data.to(device)
@@ -87,68 +89,39 @@ def train_autoencoder(autoencoder, train_loader, num_epochs=10):
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
+
         print(f'Epoch: {epoch+1}, Loss: {loss.item()}')
+
+        # Check if the model has improved
+        if loss.item() < best_loss:
+            best_loss = loss.item()
+            # Save the model
+            save_model(autoencoder, "autoencoder_best.pth")
+            print(
+                f"Model improved and saved to autoencoder_best.pth with loss {best_loss}")
+            epochs_no_improve = 0  # Reset counter
+        else:
+            epochs_no_improve += 1
+            print(
+                f"No improvement in epoch: {epoch+1}, epochs without improvement: {epochs_no_improve}")
+
+        # Early stopping
+        if epochs_no_improve == 5:
+            print("Early stopping triggered")
+            break
+
+# Save the model
+
+
+def save_model(model, path):
+    torch.save(model.state_dict(), path)
+    print(f"Model saved to {path}")
 
 
 # Train the autoencoder
 autoencoder = Autoencoder().to(device)
-train_autoencoder(autoencoder, train_loader, num_epochs=10)
+train_autoencoder(autoencoder, train_loader, num_epochs=100)
 
-# Define Anomaly Detection Function
-
-
-def detect_anomalies(image_path, autoencoder, threshold=0.01):
-    image = cv2.imread(image_path)
-    if image is None:
-        raise ValueError(f"Image not found or unable to load: {image_path}")
-    image = cv2.resize(image, (224, 224))
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    transform = transforms.Compose([
-        transforms.ToTensor(),
-        transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
-    ])
-    image_tensor = transform(image).unsqueeze(0).to(device)
-    with torch.no_grad():
-        reconstructed = autoencoder(image_tensor)
-    reconstruction_error = torch.mean(
-        (image_tensor - reconstructed) ** 2).item()
-    return reconstruction_error > threshold, reconstruction_error, image_tensor.squeeze().cpu().numpy(), reconstructed.squeeze().cpu().numpy()
-
-# Visualize the Results
-
-
-def plot_anomalies(original, reconstructed, threshold, error):
-    plt.figure(figsize=(10, 4))
-
-    # Original image
-    plt.subplot(1, 3, 1)
-    plt.title("Original")
-    plt.imshow((original.transpose(1, 2, 0) * 0.5 + 0.5).clip(0, 1))
-
-    # Reconstructed image
-    plt.subplot(1, 3, 2)
-    plt.title("Reconstructed")
-    plt.imshow((reconstructed.transpose(1, 2, 0) * 0.5 + 0.5).clip(0, 1))
-
-    # Difference
-    difference = np.abs(original - reconstructed)
-    plt.subplot(1, 3, 3)
-    plt.title("Difference")
-    plt.imshow(difference.transpose(1, 2, 0).sum(axis=2), cmap='hot')
-
-    plt.suptitle(f'Error: {error:.4f}, Threshold: {threshold}')
-    plt.show()
-
-
-# Test anomaly detection
-test_image_path = r"C:\Users\me1elar\data_anomaly_detection\leather\test\cut\003.png"
-is_anomalous, reconstruction_error, original_image, reconstructed_image = detect_anomalies(
-    test_image_path, autoencoder)
-print(
-    f'Anomaly detected: {is_anomalous}, Reconstruction error: {reconstruction_error}')
-plot_anomalies(original_image, reconstructed_image,
-               threshold=0.01, error=reconstruction_error)
-
-# Save the model
-torch.save(autoencoder.state_dict(), "autoencoder.pth")
-```
+# Save the trained model
+model_save_path = "autoencoder.pth"
+save_model(autoencoder, model_save_path)
