@@ -49,6 +49,7 @@ train_loader = DataLoader(dataset, batch_size=32, shuffle=True)
 class Autoencoder(nn.Module):
     def __init__(self):
         super(Autoencoder, self).__init__()
+        # Encoder: Convolutional layers. The output is (8, 56, 56)
         self.encoder = nn.Sequential(
             nn.Conv2d(3, 16, 3, stride=3, padding=1),
             nn.ReLU(True),
@@ -57,6 +58,11 @@ class Autoencoder(nn.Module):
             nn.ReLU(True),
             nn.MaxPool2d(2, stride=1)
         )
+        # Decoder: Deconvolutional layers. The output is (3, 224, 224)
+        # Deconvolutional layers are used to upsample the image
+        # The output size is calculated using the formula:
+        # output_size = (input_size - 1) * stride - 2 * padding + kernel_size + output_padding
+        # output_padding is used to ensure the output size is divisible by the stride
         self.decoder = nn.Sequential(
             nn.ConvTranspose2d(8, 16, 3, stride=2, padding=1),
             nn.ReLU(True),
